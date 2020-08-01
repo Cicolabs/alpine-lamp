@@ -1,4 +1,4 @@
-FROM alpine:3.7
+FROM alpine:3.12
 ENV TIMEZONE America/New_York
 RUN apk update && apk upgrade
 RUN apk add --no-cache bash \
@@ -31,6 +31,8 @@ RUN apk add --no-cache bash \
    php7-apcu \
    php7-opcache \
    php7-tokenizer \
+   php7-xml \
+   php7-fileinfo \
    supervisor
 
 RUN rm /var/cache/apk/*
@@ -58,16 +60,20 @@ RUN \
 
 # configure timezone, mysql, apache
 RUN cp /usr/share/zoneinfo/${TIMEZONE} /etc/localtime && \
-   echo "${TIMEZONE}" > /etc/timezone && \
-   mkdir -p /run/mysqld && chown -R mysql:mysql /run/mysqld /var/lib/mysql && \
-   mysql_install_db --user=mysql --verbose=1 --basedir=/usr --datadir=/var/lib/mysql --rpm > /dev/null && \
-   mkdir -p /run/apache2 && chown -R apache:apache /run/apache2 && chown -R apache:apache /var/www/localhost/htdocs/ && \
-   sed -i 's#\#LoadModule rewrite_module modules\/mod_rewrite.so#LoadModule rewrite_module modules\/mod_rewrite.so#' /etc/apache2/httpd.conf && \
-   sed -i 's#ServerName www.example.com:80#\nServerName localhost:80#' /etc/apache2/httpd.conf && \
-   sed -i '/skip-external-locking/a log_error = \/var\/lib\/mysql\/error.log' /etc/mysql/my.cnf && \
-   sed -i -e"s/^bind-address\s*=\s*127.0.0.1/bind-address = 0.0.0.0/" /etc/mysql/my.cnf && \
-   sed -i '/skip-external-locking/a general_log = ON' /etc/mysql/my.cnf && \
-   sed -i '/skip-external-locking/a general_log_file = \/var\/lib\/mysql\/query.log' /etc/mysql/my.cnf
+    echo "${TIMEZONE}" > /etc/timezone && \
+    mkdir -p /run/mysqld && chown -R mysql:mysql /run/mysqld /var/lib/mysql && \
+    # mariadb-install-db --user=mysql --ldata=/var/lib/mysql > /dev/null && \
+    mkdir -p /run/apache2 && chown -R apache:apache /run/apache2 && chown -R apache:apache /var/www/localhost/htdocs/ && \
+    sed -i 's#\#LoadModule rewrite_module modules\/mod_rewrite.so#LoadModule rewrite_module modules\/mod_rewrite.so#' /etc/apache2/httpd.conf && \
+    sed -i 's#ServerName www.example.com:80#\nServerName localhost:80#' /etc/apache2/httpd.conf && \
+    sed -i 's/skip-networking/\#skip-networking/i' /etc/my.cnf.d/mariadb-server.cnf && \
+    sed -i '/mariadb\]/a log_error = \/var\/www\/app\/logs\/mysql_error.log' /etc/my.cnf.d/mariadb-server.cnf && \
+    # sed -i -e"s/^#bind-address\s*=\s*127.0.0.1/bind-address = 0.0.0.0/" /etc/my.cnf.d/mariadb-server.cnf && \
+    sed -i -e"s/^#bind-address\s*=\s*0.0.0.0/bind-address = 0.0.0.0/" /etc/my.cnf.d/mariadb-server.cnf && \
+    sed -i '/mariadb\]/a skip-external-locking' /etc/my.cnf.d/mariadb-server.cnf && \
+    sed -i '/mariadb\]/a general_log = ON' /etc/my.cnf.d/mariadb-server.cnf && \
+    sed -i '/mariadb\]/a general_log_file = \/var\/lib\/mysql\/query.log' /etc/my.cnf.d/mariadb-server.cnf #&& \
+    # sed -i 's#/var/lib/mysql/error.log#/var/www/app/logs/mysql_error.log#' /etc/my.cnf.d/mariadb-server.cnf
 
 RUN sed -i 's#display_errors = Off#display_errors = On#' /etc/php7/php.ini && \
    sed -i 's#upload_max_filesize = 2M#upload_max_filesize = 100M#' /etc/php7/php.ini && \

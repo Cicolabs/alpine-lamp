@@ -2,8 +2,11 @@
 
 # check if mysql data directory is nuked
 # if so, install the db
+echo "Checking /var/lib/mysql folder"
 if [ ! -f /var/lib/mysql/ibdata1 ]; then 
-  mysql_install_db --user=root > /dev/null
+    echo "Installing db"
+    mariadb-install-db --user=mysql --ldata=/var/lib/mysql > /dev/null
+    echo "Installed"
 fi;
 
 if [ ! -d "/run/mysqld" ]; then
@@ -55,7 +58,7 @@ if [ -e /first_run ]; then
       echo "FLUSH PRIVILEGES;" >> $sqlinitfile
     fi
   fi
-  /usr/share/mysql/mysql.server start && \
+  /usr/share/mariadb/mysql.server start && \
   /usr/bin/mysql < $sqlinitfile && \
   rm $sqlinitfile
   if [ "$HTTP_ROOT" != "" ]; then
@@ -79,7 +82,7 @@ if [ -e /first_run ]; then
     && wp plugin update --allow-root --all
     # && chown -R wocker:wocker /var/www/wordpress
   fi
-  /usr/share/mysql/mysql.server stop
+  /usr/share/mariadb/mysql.server stop
 
   wget  https://www.adminer.org/latest-mysql-en.php -O  adminer.php
 fi
